@@ -4,37 +4,31 @@ import type {
     ChatInputCommandInteraction,
     ContextMenuCommandBuilder,
     SlashCommandBuilder,
+    SlashCommandOptionsOnlyBuilder,
     SlashCommandSubcommandsOnlyBuilder
 } from 'discord.js'
 import type SubCommand from './SubCommand.js'
+
+type CommandData =
+    | SlashCommandBuilder
+    | ContextMenuCommandBuilder
+    | SlashCommandSubcommandsOnlyBuilder
+    | SlashCommandOptionsOnlyBuilder
+    | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>
 
 /**
  * Represents an Application Command
  */
 export default class ApplicationCommand {
-    data:
-        | SlashCommandBuilder
-        | ContextMenuCommandBuilder
-        | SlashCommandSubcommandsOnlyBuilder
+    data: CommandData
     hasSubCommands: boolean
     execute?: (interaction: ChatInputCommandInteraction) => Promise<void> | void
     autocomplete?: (
         interaction: AutocompleteInteraction
     ) => Promise<void> | void
 
-    /**
-     * @param {{
-     *      data: SlashCommandBuilder | ContextMenuCommandBuilder | SlashCommandSubcommandsOnlyBuilder
-     *      hasSubCommands?: boolean
-     *      execute?: (interaction: ChatInputCommandInteraction) => Promise<void> | void
-     *      autocomplete?: (interaction: AutocompleteInteraction) => Promise<void> | void
-     *  }} options - The options for the slash command
-     */
     constructor(options: {
-        data:
-            | SlashCommandBuilder
-            | ContextMenuCommandBuilder
-            | SlashCommandSubcommandsOnlyBuilder
+        data: CommandData
         hasSubCommands?: boolean
         execute?: (
             interaction: ChatInputCommandInteraction
