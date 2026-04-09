@@ -83,3 +83,26 @@ export function markCompleted(data: {
         return completion
     })
 }
+
+export async function getChoresByAreaForToday(
+    areaId: string,
+    date: Date
+): Promise<{ completed: ChoreCompletion[]; due: Chore[] }> {
+    const allChores: Chore[] = await AppDataSource.getRepository(Chore)
+        .createQueryBuilder('chore')
+        .where('chore.areaId = :areaId', { areaId })
+        .getMany()
+
+    const completedChores: ChoreCompletion[] =
+        await AppDataSource.getRepository(ChoreCompletion)
+            .createQueryBuilder('completion')
+            .innerJoinAndSelect('completion.chore', 'chore')
+            .where('chore.areaId = :areaId', { areaId })
+            .andWhere('DATE(completion.completedAt) = DATE(:date)', { date })
+            .getMany()
+
+    const completedChoreIds = new Set(completedChores.map((c) => c.choreId))
+    const due: Chore[] = allChores.filter((c) => !completedChoreIds.has(c.id))
+
+    return { completed: completedChores, due }
+}
