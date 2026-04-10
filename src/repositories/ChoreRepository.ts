@@ -2,6 +2,7 @@ import { AppDataSource } from '../database.js'
 import { Chore } from '../entities/Chore.js'
 import { ChoreCompletion } from '../entities/ChoresCompletion.js'
 import { User } from '../entities/User.js'
+import convertTZ from '../helpers/ConvertTimezone.js'
 
 const repo = () => AppDataSource.getRepository(Chore)
 export enum ChoreRecurrence {
@@ -86,6 +87,9 @@ export async function getChoresByAreaForToday(
     areaId: string,
     date: Date
 ): Promise<{ completed: ChoreCompletion[]; due: Chore[] }> {
+    const localDate: Date = convertTZ(date, 'America/Chicago')
+    const localDateStr = localDate.toISOString().slice(0, 10)
+
     const allChores: Chore[] = await AppDataSource.getRepository(Chore)
         .createQueryBuilder('chore')
         .where('chore.areaId = :areaId', { areaId })
@@ -96,7 +100,9 @@ export async function getChoresByAreaForToday(
             .createQueryBuilder('completion')
             .innerJoinAndSelect('completion.chore', 'chore')
             .where('chore.areaId = :areaId', { areaId })
-            .andWhere('DATE(completion.completedAt) = DATE(:date)', { date })
+            .andWhere('DATE(completion.completedAt) = DATE(:date)', {
+                date: localDateStr
+            })
             .getMany()
 
     const completedChoreIds = new Set(completedChores.map((c) => c.choreId))
