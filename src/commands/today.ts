@@ -217,7 +217,6 @@ export default new ApplicationCommand({
 
             const record: ChoreCompletion = await markCompleted({
                 choreId: chore.id,
-                inchargeId: user.id,
                 isCover: false,
                 completedById: user.id,
                 pointsAwarded: chore.points

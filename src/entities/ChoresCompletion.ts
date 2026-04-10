@@ -23,9 +23,6 @@ export class ChoreCompletion {
     @Column()
     completedById: string
 
-    @Column()
-    inchargeId: string
-
     @Column({ default: false })
     isCover: boolean
 

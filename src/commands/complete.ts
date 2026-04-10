@@ -69,7 +69,6 @@ export default new ApplicationCommand({
         await markCompleted({
             choreId: choreId,
             completedById: roommate.id,
-            inchargeId: roommate.id,
             isCover: false,
             pointsAwarded: chore.points
         })

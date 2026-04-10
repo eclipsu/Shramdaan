@@ -59,7 +59,6 @@ export async function findChoresAsIncharge(
 
 export function markCompleted(data: {
     choreId: string
-    inchargeId: string
     isCover: boolean
     completedById: string
     pointsAwarded: number
@@ -69,7 +68,6 @@ export function markCompleted(data: {
         const completion = manager.getRepository(ChoreCompletion).create({
             choreId: data.choreId,
             completedById: data.completedById,
-            inchargeId: data.inchargeId,
             isCover: data.isCover,
             pointsAwarded: data.pointsAwarded
         })
