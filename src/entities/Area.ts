@@ -15,6 +15,9 @@ export class Area {
     @Column()
     name: string
 
+    @Column({ type: 'varchar', nullable: true })
+    discordChannelId: string
+
     @CreateDateColumn()
     createdAt: Date
 

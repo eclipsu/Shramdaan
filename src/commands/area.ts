@@ -3,7 +3,8 @@ import {
     ChatInputCommandInteraction,
     PermissionFlagsBits,
     EmbedBuilder,
-    ActionRowBuilder
+    ActionRowBuilder,
+    ChannelType
 } from 'discord.js'
 import ApplicationCommand from '../templates/ApplicationCommand.js'
 import {
@@ -29,6 +30,13 @@ export default new ApplicationCommand({
                         .setDescription(
                             'Area name e.g. Kitchen, Bathroom, Hallway'
                         )
+                        .setRequired(true)
+                )
+                .addChannelOption((o) =>
+                    o
+                        .setName('target')
+                        .setDescription('The channel to send logs to')
+                        .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true)
                 )
         )
@@ -66,16 +74,30 @@ export default new ApplicationCommand({
                 return
             }
 
+            const areaChannel = interaction.options.getChannel('target', true)
+
             const area = await createArea({
-                name
+                name,
+                discordChannelId: areaChannel.id
             })
 
             const embed = new EmbedBuilder()
                 .setColor(0x378add)
-                .setTitle(`Area created — ${area.name}`)
-                .setDescription(
-                    'No incharge yet. Members can claim with `/area claim`.'
+                .setTitle(`Area Created`)
+                .addFields(
+                    { name: '🌟 Area', value: area.name, inline: true },
+                    {
+                        name: '📝 Channel',
+                        value: `<#${areaChannel.id}>`,
+                        inline: true
+                    },
+                    {
+                        name: 'Incharge',
+                        value: 'None — claim with `/area claim`',
+                        inline: false
+                    }
                 )
+                .setFooter({ text: 'Do: /create to create chores' })
                 .setTimestamp()
 
             await interaction.editReply({ embeds: [embed] })

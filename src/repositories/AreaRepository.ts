@@ -3,7 +3,10 @@ import { Area } from '../entities/Area.js'
 
 const repo = () => AppDataSource.getRepository(Area)
 
-export async function createArea(data: { name: string }): Promise<Area> {
+export async function createArea(data: {
+    name: string
+    discordChannelId: string
+}): Promise<Area> {
     const area = repo().create(data)
     return repo().save(area)
 }

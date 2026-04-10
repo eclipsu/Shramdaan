@@ -20,8 +20,6 @@ import { Chore } from '../entities/Chore.js'
 import { ChoreCompletion } from '../entities/ChoresCompletion.js'
 import { Area } from '../entities/Area.js'
 
-const areas: Area[] = await findAllAreas()
-
 function buildEmbed(
     areaName: string,
     completed: ChoreCompletion[],
@@ -99,6 +97,7 @@ function buildDoneEmbed(
 }
 
 function buildAreaRow(
+    areas: Area[],
     selectedId?: string
 ): ActionRowBuilder<StringSelectMenuBuilder> {
     return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
@@ -144,13 +143,15 @@ export default new ApplicationCommand({
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
         await interaction.deferReply()
 
+        const areas: Area[] = await findAllAreas()
+
         const today: Date = new Date()
         let currentAreaId: string | null = null
         let lastDoneEmbed: EmbedBuilder | null = null
 
         const message = await interaction.editReply({
             content: "Select an area to see today's chores:",
-            components: [buildAreaRow()]
+            components: [buildAreaRow(areas)]
         })
 
         const collector = message.createMessageComponentCollector({
@@ -181,7 +182,7 @@ export default new ApplicationCommand({
                 content: '',
                 embeds: [buildEmbed(areaName, completed, due, today)],
                 components: [
-                    buildAreaRow(currentAreaId),
+                    buildAreaRow(areas, currentAreaId),
                     ...(due.length > 0 ? [buildChoreRow(due)] : [])
                 ]
             })
@@ -240,7 +241,7 @@ export default new ApplicationCommand({
                     lastDoneEmbed
                 ],
                 components: [
-                    buildAreaRow(currentAreaId),
+                    buildAreaRow(areas, currentAreaId),
                     ...(dueAfter.length > 0 ? [buildChoreRow(dueAfter)] : [])
                 ]
             })
