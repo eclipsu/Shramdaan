@@ -11,6 +11,7 @@ import type Event from './templates/Event.js'
 import type MessageCommand from './templates/MessageCommand.js'
 import { AppDataSource } from './database.js'
 import deployGlobalCommands from './deployGlobalCommands.js'
+import startScheduler from './scheduler.js'
 // import { startScheduler } from './scheduler.js'
 
 const { TOKEN } = process.env
@@ -90,5 +91,5 @@ for (const file of eventFiles) {
 await client.login(TOKEN)
 
 client.once('ready', () => {
-    // startScheduler()
+    startScheduler()
 })
