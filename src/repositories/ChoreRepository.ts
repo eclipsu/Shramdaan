@@ -5,6 +5,7 @@ import { User } from '../entities/User.js'
 import convertTZ from '../helpers/ConvertTimezone.js'
 
 const repo = () => AppDataSource.getRepository(Chore)
+const choreCompletionRepo = () => AppDataSource.getRepository(ChoreCompletion)
 export enum ChoreRecurrence {
     DAILY = 'daily',
     WEEKLY = 'weekly',
@@ -109,4 +110,17 @@ export async function getChoresByAreaForToday(
     const due: Chore[] = allChores.filter((c) => !completedChoreIds.has(c.id))
 
     return { completed: completedChores, due }
+}
+
+export async function getCompletedAndCoveredCount(userId: string): Promise<{
+    completed: number
+    covered: number
+}> {
+    const completed = await choreCompletionRepo().count({
+        where: { completedById: userId, isCover: true }
+    })
+    const covered = await choreCompletionRepo().count({
+        where: { completedById: userId, isCover: false }
+    })
+    return { completed, covered }
 }

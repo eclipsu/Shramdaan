@@ -25,6 +25,12 @@ export class User {
     @Column({ default: true })
     notifyDigest: boolean
 
+    @Column({ default: 0 })
+    streak: number
+
+    @Column({ nullable: true })
+    lastActivity: Date
+
     @Column({ default: true })
     notifyCoverRequests: boolean
 
