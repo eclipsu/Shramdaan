@@ -1,13 +1,16 @@
 import {
     TextChannel,
-    EmbedBuilder,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
     ActionRowBuilder,
     ComponentType,
     StringSelectMenuInteraction,
     MessageFlags,
-    Message
+    Message,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize
 } from 'discord.js'
 import cron from 'node-cron'
 import { findAllAreas } from './repositories/AreaRepository.js'
@@ -20,12 +23,12 @@ import { Area } from './entities/Area.js'
 
 const activeMessages = new Map<string, Message>()
 
-function buildEmbed(
+function buildContainer(
     areaName: string,
     completed: ChoreCompletion[],
     due: Chore[],
     today: Date
-): EmbedBuilder {
+): ContainerBuilder {
     const dateStr = today.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -35,62 +38,71 @@ function buildEmbed(
 
     const totalPoints = completed.reduce((sum, c) => sum + c.pointsAwarded, 0)
     const duePoints = due.reduce((sum, c) => sum + c.points, 0)
+    const allDone = due.length === 0
 
-    const completedField =
+    const header = new TextDisplayBuilder().setContent(
+        `## 🧹 ${areaName}\n📅 ${dateStr}`
+    )
+
+    const separator = new SeparatorBuilder()
+        .setSpacing(SeparatorSpacingSize.Small)
+        .setDivider(true)
+
+    const completedText = new TextDisplayBuilder().setContent(
         completed.length > 0
-            ? completed
-                  .map(
-                      (c) =>
-                          `✅ **${c.chore.name}** — \`+${c.pointsAwarded}pts\``
-                  )
-                  .join('\n')
-            : '*No chores completed yet*'
+            ? `**✅ Completed (${completed.length}) — ${totalPoints} pts earned**\n` +
+              completed.map((c) => `> ✅ **${c.chore.name}** — \`+${c.pointsAwarded}pts\``).join('\n')
+            : `**✅ Completed (0)**\n> *No chores completed yet*`
+    )
 
-    const dueField =
-        due.length > 0
-            ? due
-                  .map(
-                      (c) =>
-                          `🔲 **${c.name}** — \`${c.points}pts\` • *${c.recurrence}*`
-                  )
-                  .join('\n')
-            : '*All chores completed! 🎉*'
+    const separator2 = new SeparatorBuilder()
+        .setSpacing(SeparatorSpacingSize.Small)
+        .setDivider(true)
 
-    return new EmbedBuilder()
-        .setTitle(`🧹 Chore Report — ${areaName}`)
-        .setDescription(`📅 **${dateStr}**`)
-        .setColor(
-            completed.length > 0 && due.length === 0 ? 0x2ecc71 : 0xe67e22
+    const dueText = new TextDisplayBuilder().setContent(
+        allDone
+            ? `**🎉 All chores done! Great work!**`
+            : `**🔲 Due (${due.length}) — ${duePoints} pts remaining**\n` +
+              due.map((c) => `> 🔲 **${c.name}** — \`${c.points}pts\` • *${c.recurrence}*`).join('\n')
+    )
+
+    const footer = new TextDisplayBuilder().setContent(
+        `-# ${completed.length}/${completed.length + due.length} chores done`
+    )
+
+    const container = new ContainerBuilder()
+        .addTextDisplayComponents(header)
+        .addSeparatorComponents(separator)
+        .addTextDisplayComponents(completedText)
+        .addSeparatorComponents(separator2)
+        .addTextDisplayComponents(dueText)
+        .addSeparatorComponents(
+            new SeparatorBuilder()
+                .setSpacing(SeparatorSpacingSize.Small)
+                .setDivider(true)
         )
-        .addFields(
-            {
-                name: `Completed (${completed.length}) — ${totalPoints}pts earned`,
-                value: completedField
-            },
-            {
-                name: `Due (${due.length}) — ${duePoints}pts remaining`,
-                value: dueField
-            }
-        )
-        .setFooter({
-            text: `${completed.length}/${
-                completed.length + due.length
-            } chores done`
-        })
-        .setTimestamp()
+        .addTextDisplayComponents(footer)
+        .setAccentColor(allDone ? 0x2ecc71 : 0xe67e22)
+
+    if (due.length > 0) {
+        container.addActionRowComponents(buildChoreRow(due))
+    }
+
+    return container
 }
 
-function buildDoneEmbed(
+function buildDoneContainer(
     choreName: string,
     discordUserId: string,
     pointsAwarded: number
-): EmbedBuilder {
-    return new EmbedBuilder()
-        .setDescription(
-            `✅ **${choreName}** marked as done by <@${discordUserId}> — \`+${pointsAwarded}pts\``
+): ContainerBuilder {
+    return new ContainerBuilder()
+        .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+                `✅ **${choreName}** marked as done by <@${discordUserId}> — \`+${pointsAwarded}pts\``
+            )
         )
-        .setColor(0x2ecc71)
-        .setTimestamp()
+        .setAccentColor(0x2ecc71)
 }
 
 function buildChoreRow(
@@ -106,7 +118,7 @@ function buildChoreRow(
                     .map((c) =>
                         new StringSelectMenuOptionBuilder()
                             .setLabel(c.name)
-                            .setDescription(`${c.points} pts`)
+                            .setDescription(`${c.points} pts • ${c.recurrence}`)
                             .setValue(c.id)
                     )
             )
@@ -117,49 +129,38 @@ async function postChoreReport(area: Area): Promise<void> {
     const today = new Date()
 
     if (!area.discordChannelId) {
-        console.warn(
-            `[Scheduler] Area "${area.name}" has no channel ID, skipping.`
-        )
+        console.warn(`[Scheduler] Area "${area.name}" has no channel ID, skipping.`)
         return
     }
 
     const channel = client.channels.cache.get(area.discordChannelId)
     if (!(channel instanceof TextChannel)) return
+
     await purgeAll(channel)
 
-    if (!(channel instanceof TextChannel)) {
-        console.warn(
-            `[Scheduler] Channel for "${area.name}" not found or not a TextChannel.`
-        )
-        return
-    }
-
     const { completed, due } = await getChoresByAreaForToday(area.id, today)
-    const embeds = [buildEmbed(area.name, completed, due, today)]
-    const components = due.length > 0 ? [buildChoreRow(due)] : []
+    const container = buildContainer(area.name, completed, due, today)
 
-    // if we already have an active message for this area today, just edit it
     const existing = activeMessages.get(area.id)
     if (existing) {
-        await existing.edit({ embeds, components }).catch(() => {
-            // msg was deleted or unreachable
-            activeMessages.delete(area.id)
-        })
+        await existing.edit({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2
+        }).catch(() => activeMessages.delete(area.id))
 
         if (activeMessages.has(area.id)) {
-            console.log(
-                `[Scheduler] Updated existing chore report for "${area.name}"`
-            )
+            console.log(`[Scheduler] Updated existing chore report for "${area.name}"`)
             return
         }
     }
 
-    const message = await channel.send({ embeds, components })
-    activeMessages.set(area.id, message)
+    const message = await channel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
+    })
 
-    console.log(
-        `[Scheduler] Posted chore report for "${area.name}" in #${channel.name}`
-    )
+    activeMessages.set(area.id, message)
+    console.log(`[Scheduler] Posted chore report for "${area.name}" in #${channel.name}`)
 
     const collector = message.createMessageComponentCollector({
         componentType: ComponentType.StringSelect
@@ -179,7 +180,6 @@ async function handleCompleteChore(
     await i.deferUpdate()
 
     const choreId = i.values[0]
-
     const { due } = await getChoresByAreaForToday(area.id, today)
     const chore = due.find((c) => c.id === choreId)
 
@@ -200,17 +200,14 @@ async function handleCompleteChore(
         pointsAwarded: chore.points
     })
 
-    const { completed, due: dueAfter } = await getChoresByAreaForToday(
-        area.id,
-        today
-    )
+    const { completed, due: dueAfter } = await getChoresByAreaForToday(area.id, today)
 
     await message.edit({
-        embeds: [
-            buildEmbed(area.name, completed, dueAfter, today),
-            buildDoneEmbed(chore.name, i.user.id, record.pointsAwarded)
+        components: [
+            buildContainer(area.name, completed, dueAfter, today),
+            buildDoneContainer(chore.name, i.user.id, record.pointsAwarded)
         ],
-        components: dueAfter.length > 0 ? [buildChoreRow(dueAfter)] : []
+        flags: MessageFlags.IsComponentsV2
     })
 }
 
@@ -225,13 +222,11 @@ async function purgeAll(channel: TextChannel): Promise<void> {
         deleted = result.size
         console.log(`[Purge] Deleted ${deleted} messages…`)
 
-        // Small delay to avoid hitting rate limits
         await new Promise((res) => setTimeout(res, 1000))
     } while (deleted > 0)
 
     console.log(`[Purge] Done purging #${channel.name}`)
 }
-2
 
 export async function postAllChoreReports(): Promise<void> {
     const areas = await findAllAreas()
@@ -242,8 +237,5 @@ export async function postAllChoreReports(): Promise<void> {
 
 export default function startScheduler(): void {
     void postAllChoreReports()
-
-    // the cron value is experimental
-    // TODO: change cron to 0 8 * * *
     cron.schedule('*/30 * * * *', () => void postAllChoreReports())
 }

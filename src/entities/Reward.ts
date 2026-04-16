@@ -2,25 +2,24 @@ import {
     Entity,
     PrimaryGeneratedColumn,
     Column,
-    CreateDateColumn
+    CreateDateColumn,
+    ManyToOne
 } from 'typeorm'
-
-export enum RewardType {
-    COOK = 'cook',
-    THERMOSTAT = 'thermostat',
-    LAUNDRY = 'laundry'
-}
+import { User } from './User.js'
 
 @Entity('rewards')
 export class Reward {
     @PrimaryGeneratedColumn('uuid')
     id: string
 
-    @Column()
+    @Column({ type: 'varchar' })
     name: string
 
-    @Column({ type: 'enum', enum: RewardType })
-    type: RewardType
+    @Column({ type: 'varchar', nullable: true })
+    description: string
+
+    @ManyToOne(() => User, { eager: true })
+    createdBy: User
 
     @Column()
     pointsCost: number
