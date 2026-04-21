@@ -15,7 +15,10 @@ import {
 import cron from 'node-cron'
 import { findAllAreas } from './repositories/AreaRepository.js'
 import { getChoresByAreaForToday } from './repositories/ChoreRepository.js'
-import { getOrCreateUser } from './repositories/UserRepository.js'
+import {
+    getOrCreateUser,
+    incrementStreak
+} from './repositories/UserRepository.js'
 import { markCompleted } from './repositories/ChoreRepository.js'
 import { Chore } from './entities/Chore.js'
 import { ChoreCompletion } from './entities/ChoresCompletion.js'
@@ -51,7 +54,12 @@ function buildContainer(
     const completedText = new TextDisplayBuilder().setContent(
         completed.length > 0
             ? `**✅ Completed (${completed.length}) — ${totalPoints} pts earned**\n` +
-              completed.map((c) => `> ✅ **${c.chore.name}** — \`+${c.pointsAwarded}pts\``).join('\n')
+                  completed
+                      .map(
+                          (c) =>
+                              `> ✅ **${c.chore.name}** — \`+${c.pointsAwarded}pts\``
+                      )
+                      .join('\n')
             : `**✅ Completed (0)**\n> *No chores completed yet*`
     )
 
@@ -63,7 +71,12 @@ function buildContainer(
         allDone
             ? `**🎉 All chores done! Great work!**`
             : `**🔲 Due (${due.length}) — ${duePoints} pts remaining**\n` +
-              due.map((c) => `> 🔲 **${c.name}** — \`${c.points}pts\` • *${c.recurrence}*`).join('\n')
+                  due
+                      .map(
+                          (c) =>
+                              `> 🔲 **${c.name}** — \`${c.points}pts\` • *${c.recurrence}*`
+                      )
+                      .join('\n')
     )
 
     const footer = new TextDisplayBuilder().setContent(
@@ -129,7 +142,9 @@ async function postChoreReport(area: Area): Promise<void> {
     const today = new Date()
 
     if (!area.discordChannelId) {
-        console.warn(`[Scheduler] Area "${area.name}" has no channel ID, skipping.`)
+        console.warn(
+            `[Scheduler] Area "${area.name}" has no channel ID, skipping.`
+        )
         return
     }
 
@@ -143,13 +158,17 @@ async function postChoreReport(area: Area): Promise<void> {
 
     const existing = activeMessages.get(area.id)
     if (existing) {
-        await existing.edit({
-            components: [container],
-            flags: MessageFlags.IsComponentsV2
-        }).catch(() => activeMessages.delete(area.id))
+        await existing
+            .edit({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2
+            })
+            .catch(() => activeMessages.delete(area.id))
 
         if (activeMessages.has(area.id)) {
-            console.log(`[Scheduler] Updated existing chore report for "${area.name}"`)
+            console.log(
+                `[Scheduler] Updated existing chore report for "${area.name}"`
+            )
             return
         }
     }
@@ -160,7 +179,9 @@ async function postChoreReport(area: Area): Promise<void> {
     })
 
     activeMessages.set(area.id, message)
-    console.log(`[Scheduler] Posted chore report for "${area.name}" in #${channel.name}`)
+    console.log(
+        `[Scheduler] Posted chore report for "${area.name}" in #${channel.name}`
+    )
 
     const collector = message.createMessageComponentCollector({
         componentType: ComponentType.StringSelect
@@ -200,7 +221,11 @@ async function handleCompleteChore(
         pointsAwarded: chore.points
     })
 
-    const { completed, due: dueAfter } = await getChoresByAreaForToday(area.id, today)
+    const { completed, due: dueAfter } = await getChoresByAreaForToday(
+        area.id,
+        today
+    )
+    await incrementStreak(user.discordUserId)
 
     await message.edit({
         components: [

@@ -9,7 +9,8 @@ import { ChoreCompletion } from './entities/ChoresCompletion.js'
 import { Reward } from './entities/Reward.js'
 import { Redemption } from './entities/Redemption.js'
 import { PointLedger } from './entities/PointLedger.js'
-
+import { Praise } from './entities/Praise.js'
+import { WeeklyReport } from './entities/WeeklyReport.js'
 
 export const AppDataSource = new DataSource({
     type: 'postgres',
@@ -20,5 +21,16 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME,
     synchronize: true, // REMINDER: turn off in production
     logging: false,
-    entities: [User, Chore, Area, AreaRotation, ChoreCompletion, Reward, Redemption, PointLedger],
+    entities: [
+        User,
+        Chore,
+        Area,
+        AreaRotation,
+        ChoreCompletion,
+        Reward,
+        Redemption,
+        PointLedger,
+        Praise,
+        WeeklyReport
+    ]
 })

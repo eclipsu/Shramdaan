@@ -33,20 +33,23 @@ export async function incrementStreak(discordUserId: string) {
             where: { discordUserId },
             lock: { mode: 'pessimistic_write' }
         })
+
         const today = new Date()
         const lastActivity = user.lastActivity
 
-        if (!lastActivity) user.streak = 1
-        else {
+        if (!lastActivity) {
+            user.streak = 1
+        } else {
             const daysDiff = dateDiffInDays(lastActivity, today)
-            if (daysDiff == 0 || daysDiff == 1) {
+            if (daysDiff === 0 || daysDiff === 1) {
                 user.streak += 1
             } else {
                 user.streak = 1
             }
-            user.lastActivity = today
-            await manager.save(user)
         }
+
+        user.lastActivity = today
+        await manager.save(user)
     })
 }
 
